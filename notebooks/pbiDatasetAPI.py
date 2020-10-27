@@ -8,34 +8,35 @@ from pyspark.sql.functions import to_json, struct
 
 class pbiDatasetAPI:
   
-  def __init__(self, username, password, application_id):
+  def __init__(self, tenant, application_id, secret):
     """Initialise the calss instance"""
-    self.username = username
-    self.password = password
+    self.tenant = tenant
+    self.secret = secret
     self.application_id = application_id
     self.getHeaders()
     
     
-  def getToken(self, tokenStringOnly = True):
-    """Acquire an access token"""
-    data = {
-        "grant_type": "password"
-      , "scope"     : "openid"
-      , "resource"  : "https://analysis.windows.net/powerbi/api"
-      , "client_id" : self.application_id
-      , "username"  : self.username
-      , "password"  : self.password
-    }
-    token = requests.post("https://login.microsoftonline.com/common/oauth2/token", data = data)
-    assert token.status_code == 200, "Failed to retrieve token: {}".format(token.text)
-    self.token = token
-    self.accessToken = token.json()['access_token']
-    self.tokenExpirationDateTime = datetime.datetime.fromtimestamp(int(token.json()["expires_on"]))
-    if tokenStringOnly:
-      return self.accessToken
-    else:
-      return self.token
+  def authenticate_client_key(self):
+    """
+    Authenticate using service principal w/ key.
+    """
+    authority_host_uri = 'https://login.microsoftonline.com'
+    tenant = self.tenant
+    authority_uri = authority_host_uri + '/' + tenant
+    resource_uri = 'https://analysis.windows.net/powerbi/api'
+    client_id = self.application_id
+    client_secret = self.secret
 
+    context = adal.AuthenticationContext(authority_uri, api_version=None)
+    mgmt_token = context.acquire_token_with_client_credentials(resource_uri, client_id, client_secret)
+    credentials = AADTokenCredentials(mgmt_token, client_id)
+
+    return credentials
+    
+  def getToken(self, tokenStringOnly = True):
+      
+      cred = self.authenticate_client_key()
+      return cred.token['access_token']
 
   def getHeaders(self):
     """Create HTTP headers"""

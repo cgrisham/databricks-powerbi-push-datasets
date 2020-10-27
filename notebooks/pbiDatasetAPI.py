@@ -3,7 +3,9 @@
 import requests
 import json
 import datetime
+import adal
 from pyspark.sql.functions import to_json, struct
+from msrestazure.azure_active_directory import AADTokenCredentials
 
 
 class pbiDatasetAPI:
